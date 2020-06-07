@@ -1,12 +1,21 @@
 #!/bin/bash
 
+#
+# Take a picture
+#  - store it in storage dir
+#  - if target host is reachable, sync storage dir to targethost
+#  - if /boot/halt-after-picture exists, halt
+# 
+
 FILENAME=`date +%Y%m%d-%H%M%S`.jpg
 DIRNAME=/tmp/`date +%Y%m%d`
 TIMESTAMP=x`date +%Y-%m-%d_%H:%M:%S`
 HOUR=`date +%H`
 TMPDIR=/tmp
 
-TARGETHOST=lancre.garf.de::pi2
+TARGETHOST=lancre.garf.de
+TARGETREPO=$TARGETHOST::pi2
+STORAGE=/tmp/storage
 
 case $HOUR in
   1[89]) EXPO='-ex night ' ;;
@@ -16,17 +25,23 @@ case $HOUR in
 esac
 
 # raspistill -hf -vf -l /var/www/latest.jpg -w 1280 -h 1024 -drc high -mm matrix -ex auto -o /var/www/motion/`date +%Y%m%d`/`date +%Y%m%d-%H%M%S`.jpg >> /tmp/out
+
 raspistill -o $TMPDIR/latest.jpg -drc high -mm matrix $EXPO -sa 20 -md 3 
 
 gm convert -font helvetica -pointsize 72 -fill white -gravity southeast -draw "text 100,100 $TIMESTAMP" $TMPDIR/latest.jpg $TMPDIR/$FILENAME
 
-timeout 120s rsync -4 $TMPDIR/$FILENAME $TARGETHOST
+mkdir -p $STORAGE
+mv $TMPDIR/$FILENAME $STORAGE
 
-# if rsync -e "ssh -p 16082" $TMPDIR/$FILENAME $FALLBACKHOST/latest.jpg
- #  then echo "Copied to $FALLBACKHOST"
-# fi
-    
+if ping -c 1 $TARGETHOST &>/dev/null
+then
+  timeout 120s rsync -av --ignore-existing --remove-source-files -4 $STORAGE/ $TARGETREPO
+fi
 
-rm $TMPDIR/$FILENAME $TMPDIR/latest.jpg
+if [ -f /boot/halt-after-picture ]; then
+  halt
+fi
+
+
 
 
