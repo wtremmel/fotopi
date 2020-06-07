@@ -1,0 +1,16 @@
+#!/bin/bash
+
+DOIT=/usr/local/bin/foto
+
+while true
+do
+  START=`date +%s`
+  $DOIT
+  END=`date +%s`
+  DIFF=$((60-$END+$START))
+
+  if (( $DIFF >= 0 )); then
+    echo "sleep for $DIFF seconds"
+    sleep $DIFF
+  fi
+done

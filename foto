@@ -1,0 +1,32 @@
+#!/bin/bash
+
+FILENAME=`date +%Y%m%d-%H%M%S`.jpg
+DIRNAME=/tmp/`date +%Y%m%d`
+TIMESTAMP=x`date +%Y-%m-%d_%H:%M:%S`
+HOUR=`date +%H`
+TMPDIR=/tmp
+
+TARGETHOST=lancre.garf.de::pi2
+
+case $HOUR in
+  1[89]) EXPO='-ex night ' ;;
+  2[0123]) EXPO='-ex night ' ;;
+  0[01234]) EXPO='-ex night ' ;;
+  *) EXPO='-ex night' ;;
+esac
+
+# raspistill -hf -vf -l /var/www/latest.jpg -w 1280 -h 1024 -drc high -mm matrix -ex auto -o /var/www/motion/`date +%Y%m%d`/`date +%Y%m%d-%H%M%S`.jpg >> /tmp/out
+raspistill -o $TMPDIR/latest.jpg -drc high -mm matrix $EXPO -sa 20 -md 3 
+
+gm convert -font helvetica -pointsize 72 -fill white -gravity southeast -draw "text 100,100 $TIMESTAMP" $TMPDIR/latest.jpg $TMPDIR/$FILENAME
+
+timeout 120s rsync -4 $TMPDIR/$FILENAME $TARGETHOST
+
+# if rsync -e "ssh -p 16082" $TMPDIR/$FILENAME $FALLBACKHOST/latest.jpg
+ #  then echo "Copied to $FALLBACKHOST"
+# fi
+    
+
+rm $TMPDIR/$FILENAME $TMPDIR/latest.jpg
+
+
