@@ -96,11 +96,11 @@ bool loop_reportVoltage() {
   bool retval = false;
 
   if (v > 0.0) {
-    Log.notice(F("Voltage: %f"), v);
+    Log.notice(F("Voltage: %F"), v);
     retval = true;
   }
   if (a > 0.0) {
-    Log.notice(F("Current: %f"), a);
+    Log.notice(F("Current: %F"), a);
     retval = true;
   }
   return retval;
