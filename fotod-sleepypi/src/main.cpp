@@ -90,9 +90,20 @@ void setup() {
   stateChange = SleepyPi.readTime();
 }
 
-void loop_reportVoltage() {
-  Log.notice(F("Voltage: %f"), SleepyPi.supplyVoltage());
-  Log.notice(F("Current: %f"), SleepyPi.rpiCurrent());
+bool loop_reportVoltage() {
+  float v = SleepyPi.supplyVoltage(),
+        a = SleepyPi.rpiCurrent();
+  bool retval = false;
+
+  if (v > 0.0) {
+    Log.notice(F("Voltage: %f"), v);
+    retval = true;
+  }
+  if (a > 0.0) {
+    Log.notice(F("Current: %f"), a);
+    retval = true;
+  }
+  return retval;
 }
 
 void loop() {
@@ -100,8 +111,10 @@ void loop() {
   TimeSpan lastChange = now - stateChange;
 
   // Every minute report current and voldate
-  if (now.seconds() == 0) {
-    loop_reportVoltage();
+  if (now.second() == 0) {
+    if (loop_reportVoltage()) {
+      delay(1000);
+    }
   }
 
 
