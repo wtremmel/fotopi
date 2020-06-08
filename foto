@@ -15,7 +15,12 @@ TMPDIR=/tmp
 
 TARGETHOST=lancre.garf.de
 TARGETREPO=$TARGETHOST::pi2
-STORAGE=/tmp/storage
+
+if [ -e /media/usb0/storage ]; then
+  STORAGE=/media/usb0/pictures
+else
+  STORAGE=/tmp/storage
+fi
 
 case $HOUR in
   1[89]) EXPO='-ex night ' ;;
@@ -38,7 +43,7 @@ then
   timeout 120s rsync -av --ignore-existing --remove-source-files -4 $STORAGE/ $TARGETREPO
 fi
 
-if [ -f /boot/halt-after-picture ]; then
+if [ -e /boot/halt-after-picture ]; then
   halt
 fi
 
