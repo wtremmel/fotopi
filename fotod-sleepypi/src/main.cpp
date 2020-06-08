@@ -139,13 +139,17 @@ void loop() {
       SleepyPi.enablePiPower(true);
       state = S_STARTING;
       stateChange = now;
-      Log.notice(F("PI waking up"));
+      Log.notice(F("PI waking up after %ls sleep"),lastChange.totalseconds());
     } else {
       blink();
     }
   }
   if (state == S_ERROR) {
     // something is wrong
-    
+    if (SleepyPi.checkPiStatus(false)) {
+      state = S_STARTING;
+      stateChange = now;
+      Log.notice(F("PI recovered"));
+    }
   }
 }
