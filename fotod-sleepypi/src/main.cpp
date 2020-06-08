@@ -90,9 +90,21 @@ void setup() {
   stateChange = SleepyPi.readTime();
 }
 
+void loop_reportVoltage() {
+  Log.notice(F("Voltage: %f"), SleepyPi.supplyVoltage());
+  Log.notice(F("Current: %f"), SleepyPi.rpiCurrent());
+}
+
 void loop() {
   DateTime now = SleepyPi.readTime();
   TimeSpan lastChange = now - stateChange;
+
+  // Every minute report current and voldate
+  if (now.seconds() == 0) {
+    loop_reportVoltage();
+  }
+
+
   if (state == S_STARTING) {
     if (SleepyPi.checkPiStatus(false)) {
       // State change to S_RUNNING
