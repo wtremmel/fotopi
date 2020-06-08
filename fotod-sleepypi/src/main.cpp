@@ -133,8 +133,15 @@ void loop() {
     }
   }
   if (state == S_SLEEPING){
+    // check if we are really sleeping
+    if (SleepyPi.checkPiStatus(false)) {
+      // no we are not sleeping, we are running
+      Log.notice(F("PI woke up by itself"));
+      state = S_RUNNING;
+      stateChange = now;
+    }
     // check how long we are sleeping
-    if (lastChange.totalseconds() >= sleepFor) {
+    else if (lastChange.totalseconds() >= sleepFor) {
       // wake up
       SleepyPi.enablePiPower(true);
       state = S_STARTING;
