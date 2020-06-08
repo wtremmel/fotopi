@@ -120,7 +120,7 @@ void loop() {
       }
     }
   }
-  if (state == S_RUNNING) {
+  else if (state == S_RUNNING) {
     if (SleepyPi.checkPiStatus(false)) {
       // still running
       blink();
@@ -131,7 +131,7 @@ void loop() {
       Log.notice("PI is stopping");
     }
   }
-  if (state == S_STOPPING) {
+  else if (state == S_STOPPING) {
     // cut power if stopped
     if (SleepyPi.checkPiStatus(true)) {
       // oops, we are still running
@@ -144,7 +144,7 @@ void loop() {
       Log.notice(F("PI has stopped"));
     }
   }
-  if (state == S_SLEEPING){
+  else if (state == S_SLEEPING){
     // check if we are really sleeping
     if (SleepyPi.checkPiStatus(false)) {
       // no we are not sleeping, we are running
@@ -163,7 +163,7 @@ void loop() {
       blink();
     }
   }
-  if (state == S_ERROR) {
+  else if (state == S_ERROR) {
     // something is wrong
     if (SleepyPi.checkPiStatus(false)) {
       state = S_STARTING;
