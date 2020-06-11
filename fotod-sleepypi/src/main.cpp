@@ -76,7 +76,8 @@ void setup_logging() {
 
 void setup_sleepy() {
   SleepyPi.enablePiPower(true);
-  have_rtc = SleepyPi.rtcInit(false);
+  SleepyPi.enableExtPower(true);
+  have_rtc = SleepyPi.rtcInit(true);
 }
 
 void setup() {
@@ -117,7 +118,6 @@ void loop() {
     }
   }
 
-
   if (state == S_STARTING) {
     if (SleepyPi.checkPiStatus(false)) {
       // State change to S_RUNNING
@@ -146,7 +146,7 @@ void loop() {
   }
   else if (state == S_STOPPING) {
     // cut power if stopped
-    if (SleepyPi.checkPiStatus(true)) {
+    if (SleepyPi.checkPiStatus(false)) {
       // oops, we are still running
       state = S_RUNNING;
       stateChange = now;
@@ -155,6 +155,8 @@ void loop() {
       state = S_SLEEPING;
       stateChange = now;
       Log.notice(F("PI has stopped"));
+      SleepyPi.enablePiPower(false);
+      SleepyPi.enableExtPower(false);
     }
   }
   else if (state == S_SLEEPING){
@@ -169,6 +171,7 @@ void loop() {
     else if (lastChange.totalseconds() >= sleepFor) {
       // wake up
       SleepyPi.enablePiPower(true);
+      SleepyPi.enableExtPower(true);
       state = S_STARTING;
       stateChange = now;
       Log.notice(F("PI waking up after %ls sleep"),lastChange.totalseconds());
