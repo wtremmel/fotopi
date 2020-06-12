@@ -28,7 +28,7 @@ const int LED_PIN = 13;
 const int sleepFor = 60;
 
 uint8_t state = S_SETUP;
-DateTime stateChange;
+unsigned long stateChange;
 
 // Global variables
 bool have_rtc = false;
@@ -36,7 +36,7 @@ bool have_rtc = false;
 
 // Logging helper routines
 void printTimestamp(Print* _logOutput) {
-  char c[20];
+  char c[40];
   if (!have_rtc) {
     sprintf(c, "%10lu ", millis());
   } else {
@@ -68,7 +68,7 @@ void setup_serial() {
 }
 
 void setup_logging() {
-  Log.begin(LOG_LEVEL_VERBOSE, &Serial);
+  Log.begin(LOG_LEVEL_VERBOSE, &Serial, true);
   Log.setPrefix(printTimestamp);
   Log.setSuffix(printNewline);
   Log.verbose(F("Logging has started"));
@@ -77,7 +77,7 @@ void setup_logging() {
 void setup_sleepy() {
   SleepyPi.enablePiPower(true);
   SleepyPi.enableExtPower(true);
-  have_rtc = SleepyPi.rtcInit(true);
+  have_rtc = SleepyPi.rtcInit(false);
 }
 
 void setup() {
@@ -88,7 +88,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN,LOW);            // Switch off LED
   state=S_STARTING;
-  stateChange = SleepyPi.readTime();
+  stateChange = millis();
 }
 
 bool loop_reportVoltage() {
@@ -108,28 +108,26 @@ bool loop_reportVoltage() {
 }
 
 void loop() {
-  DateTime now = SleepyPi.readTime();
-  TimeSpan lastChange = now - stateChange;
-
-  // Every minute report current and voldate
-  if (now.second() == 0) {
-    if (loop_reportVoltage()) {
-      delay(1000);
-    }
+  unsigned long currentMillis = millis();
+  
+  if ((currentMillis % 1000) == 0) {
+    loop_reportVoltage();
   }
+
+#if 0
 
   if (state == S_STARTING) {
     if (SleepyPi.checkPiStatus(false)) {
       // State change to S_RUNNING
       state = S_RUNNING;
       Log.notice(F("PI is now running"));
-      stateChange = now;
+      stateChange = currentMillis;
     } else {
       // PI is still starting - check time
       if (lastChange.totalseconds() > 120) { // longer than 2 minutes startup
         state = S_ERROR;
         Log.notice(F("PI taking too long to start up"));
-        stateChange = now;
+        stateChange = currentMillis;
       }
     }
   }
@@ -140,7 +138,7 @@ void loop() {
     } else {
       // shutting down
       state = S_STOPPING;
-      stateChange = now;
+      stateChange = currentMillis;
       Log.notice("PI is stopping");
     }
   }
@@ -149,11 +147,11 @@ void loop() {
     if (SleepyPi.checkPiStatus(false)) {
       // oops, we are still running
       state = S_RUNNING;
-      stateChange = now;
+      stateChange = currentMillis;
       Log.notice(F("PI is still running"));
     } else {
       state = S_SLEEPING;
-      stateChange = now;
+      stateChange = currentMillis;
       Log.notice(F("PI has stopped"));
       SleepyPi.enablePiPower(false);
       SleepyPi.enableExtPower(false);
@@ -165,7 +163,7 @@ void loop() {
       // no we are not sleeping, we are running
       Log.notice(F("PI woke up by itself"));
       state = S_RUNNING;
-      stateChange = now;
+      stateChange = currentMillis;
     }
     // check how long we are sleeping
     else if (lastChange.totalseconds() >= sleepFor) {
@@ -173,7 +171,7 @@ void loop() {
       SleepyPi.enablePiPower(true);
       SleepyPi.enableExtPower(true);
       state = S_STARTING;
-      stateChange = now;
+      stateChange = currentMillis;
       Log.notice(F("PI waking up after %ls sleep"),lastChange.totalseconds());
     } else {
       blink();
@@ -183,8 +181,9 @@ void loop() {
     // something is wrong
     if (SleepyPi.checkPiStatus(false)) {
       state = S_STARTING;
-      stateChange = now;
+      stateChange = currentMillis;
       Log.notice(F("PI recovered"));
     }
   }
+#endif
 }
