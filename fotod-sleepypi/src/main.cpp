@@ -2,7 +2,8 @@
 // SleepyPi Routines for the FotoPi Project
 //
 //  Idea is that we have stages:
-// setup --> starting --> running --> stopping --> sleeping --> Starting
+// setup --> starting --> running --> stopping
+//  --> stopped --> sleeping --> Starting
 // also there is an error state
 //
 
@@ -10,7 +11,8 @@
 #define S_STARTING 1
 #define S_RUNNING 2
 #define S_STOPPING 3
-#define S_SLEEPING 4
+#define S_STOPPED 4
+#define S_SLEEPING 5
 #define S_ERROR 99
 
 
@@ -22,6 +24,8 @@
 #include <PCF8523.h>
 #include <Wire.h>
 #include <ArduinoLog.h>
+
+#define RUNNING_THRESHOLD 85
 
 // Constants
 const int LED_PIN = 13;
@@ -109,12 +113,10 @@ bool loop_reportVoltage() {
 
 void loop() {
   unsigned long currentMillis = millis();
-  
+
   if ((currentMillis % 1000) == 0) {
     loop_reportVoltage();
   }
-
-#if 0
 
   if (state == S_STARTING) {
     if (SleepyPi.checkPiStatus(false)) {
@@ -124,7 +126,7 @@ void loop() {
       stateChange = currentMillis;
     } else {
       // PI is still starting - check time
-      if (lastChange.totalseconds() > 120) { // longer than 2 minutes startup
+      if (currentMillis - stateChange > 120000) { // longer than 2 minutes startup
         state = S_ERROR;
         Log.notice(F("PI taking too long to start up"));
         stateChange = currentMillis;
@@ -134,7 +136,7 @@ void loop() {
   else if (state == S_RUNNING) {
     if (SleepyPi.checkPiStatus(false)) {
       // still running
-      blink();
+      // blink();
     } else {
       // shutting down
       state = S_STOPPING;
@@ -146,16 +148,30 @@ void loop() {
     // cut power if stopped
     if (SleepyPi.checkPiStatus(false)) {
       // oops, we are still running
-      state = S_RUNNING;
-      stateChange = currentMillis;
-      Log.notice(F("PI is still running"));
+      // are we?
+      if (SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
+        // really running
+        state = S_RUNNING;
+        stateChange = currentMillis;
+        Log.notice(F("PI is still running"));
+      } else {
+        // no, we are not
+        state = S_STOPPED;
+        Log.notice(F("PI has stopped"));
+        stateChange = currentMillis;
+      }
     } else {
-      state = S_SLEEPING;
+      state = S_STOPPED;
       stateChange = currentMillis;
       Log.notice(F("PI has stopped"));
-      SleepyPi.enablePiPower(false);
-      SleepyPi.enableExtPower(false);
     }
+  }
+  else if (state == S_STOPPED) {
+    state = S_SLEEPING;
+    stateChange = currentMillis;
+    Log.notice(F("cutting power"));
+    SleepyPi.enablePiPower(false);
+    SleepyPi.enableExtPower(false);
   }
   else if (state == S_SLEEPING){
     // check if we are really sleeping
@@ -166,15 +182,16 @@ void loop() {
       stateChange = currentMillis;
     }
     // check how long we are sleeping
-    else if (lastChange.totalseconds() >= sleepFor) {
+    else if (currentMillis - stateChange >= sleepFor*1000l) {
       // wake up
       SleepyPi.enablePiPower(true);
       SleepyPi.enableExtPower(true);
       state = S_STARTING;
       stateChange = currentMillis;
-      Log.notice(F("PI waking up after %ls sleep"),lastChange.totalseconds());
+      Log.notice(F("PI waking up after %ls sleep"),
+        (currentMillis - stateChange)/1000);
     } else {
-      blink();
+      // blink();
     }
   }
   else if (state == S_ERROR) {
@@ -185,5 +202,4 @@ void loop() {
       Log.notice(F("PI recovered"));
     }
   }
-#endif
 }
