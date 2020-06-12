@@ -180,12 +180,15 @@ void loop() {
       Log.notice(F("PI woke up by itself"));
       state = S_RUNNING;
       stateChange = currentMillis;
+      // just make sure to switch on power in case we are in debug mode
+      SleepyPi.enablePiPower(true);
+      SleepyPi.enablePiPower(true);
     }
     // check how long we are sleeping
     else if (currentMillis - stateChange >= sleepFor*1000l) {
       // wake up
       SleepyPi.enablePiPower(true);
-      SleepyPi.enableExtPower(true);
+      SleepyPi.enablePiPower(true);
       state = S_STARTING;
       stateChange = currentMillis;
       Log.notice(F("PI waking up after %ls sleep"),
