@@ -207,6 +207,7 @@ void loop() {
     state = S_STARTING;
     SleepyPi.enablePiPower(true);
     SleepyPi.enableExtPower(true);
+    stateChange = currentMillis;
   }
   else if (state == S_ERROR) {
     // something is wrong
