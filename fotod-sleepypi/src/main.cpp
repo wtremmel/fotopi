@@ -29,7 +29,7 @@
 
 // Constants
 const int LED_PIN = 13;
-const int sleepFor = 60;
+const uint8_t sleepFor = 2; // in Minutes
 
 uint8_t state = S_SETUP;
 unsigned long stateChange;
@@ -65,6 +65,24 @@ void blink() {
   digitalWrite(LED_PIN,HIGH);
   delay(50);
   digitalWrite(LED_PIN,LOW);
+}
+
+void alarm_isr() {
+}
+
+uint8_t CalcNextWakeTime(uint8_t minutes) {
+  DateTime now = SleepyPi.readTime();
+  uint8_t nextWakeTime;
+
+  nextWakeTime = now.minute() + minutes;
+  if(nextWakeTime == 60){
+      nextWakeTime = 0;
+  }
+  else if (nextWakeTime > 60){
+      nextWakeTime = nextWakeTime - 60;
+  }
+
+  return nextWakeTime;
 }
 
 void setup_serial() {
@@ -172,30 +190,23 @@ void loop() {
     Log.notice(F("cutting power"));
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
+
   }
   else if (state == S_SLEEPING){
-    // check if we are really sleeping
-    if (SleepyPi.checkPiStatus(false)) {
-      // no we are not sleeping, we are running
-      Log.notice(F("PI woke up by itself"));
-      state = S_RUNNING;
-      stateChange = currentMillis;
-      // just make sure to switch on power in case we are in debug mode
-      SleepyPi.enablePiPower(true);
-      SleepyPi.enablePiPower(true);
-    }
-    // check how long we are sleeping
-    else if (currentMillis - stateChange >= sleepFor*1000l) {
-      // wake up
-      SleepyPi.enablePiPower(true);
-      SleepyPi.enablePiPower(true);
-      state = S_STARTING;
-      stateChange = currentMillis;
-      Log.notice(F("PI waking up after %ls sleep"),
-        (currentMillis - stateChange)/1000);
-    } else {
-      // blink();
-    }
+    uint8_t wakeMin = CalcNextWakeTime(sleepFor);
+    // use RTC to go to sleep
+    attachInterrupt(0,alarm_isr,FALLING);
+    SleepyPi.enableWakeupAlarm(true);
+    SleepyPi.setAlarm(wakeMin);
+    Log.notice(F("stopping Controller until %d"),wakeMin);
+    delay(500);
+    SleepyPi.powerDown(SLEEP_FOREVER,ADC_OFF,BOD_OFF);
+    detachInterrupt(0);
+    SleepyPi.ackAlarm();
+    Log.notice(F("starting Controller"));
+    state = S_STARTING;
+    SleepyPi.enablePiPower(true);
+    SleepyPi.enableExtPower(true);
   }
   else if (state == S_ERROR) {
     // something is wrong
