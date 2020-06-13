@@ -169,19 +169,12 @@ void loop() {
       // are we?
       if (SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
         // really running
-        state = S_RUNNING;
-        stateChange = currentMillis;
-        Log.notice(F("PI is still running"));
+        Log.notice(F("PI is still running, forcing stop"));
       } else {
-        // no, we are not
-        state = S_STOPPED;
         Log.notice(F("PI has stopped"));
-        stateChange = currentMillis;
       }
-    } else {
       state = S_STOPPED;
       stateChange = currentMillis;
-      Log.notice(F("PI has stopped"));
     }
   }
   else if (state == S_STOPPED) {
