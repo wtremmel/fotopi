@@ -1,6 +1,8 @@
 #!/bin/bash
 
 DOIT=/usr/local/bin/foto
+echo 25 > /sys/class/gpio/export
+echo out > /sys/class/gpio/gpio25/direction
 
 while true
 do
