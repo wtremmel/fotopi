@@ -29,7 +29,7 @@
 
 // Constants
 const int LED_PIN = 13;
-const uint8_t sleepFor = 2; // in Minutes
+const uint8_t sleepFor = 120; // in seconds
 
 uint8_t state = S_SETUP;
 unsigned long stateChange;
@@ -136,6 +136,13 @@ void loop() {
     loop_reportVoltage();
   }
 
+  // check if we already have stopped, if yes, cut power
+  if ((millis() - stateChange) > (120l*1000l) && SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
+    state = S_STOPPING;
+    stateChange = currentMillis;
+    Log.notice(F("PI seems no longer running"));
+  }
+
   if (state == S_STARTING) {
     if (SleepyPi.checkPiStatus(false)) {
       // State change to S_RUNNING
@@ -159,7 +166,7 @@ void loop() {
       // shutting down
       state = S_STOPPING;
       stateChange = currentMillis;
-      Log.notice("PI is stopping");
+      Log.notice(F("PI is stopping"));
     }
   }
   else if (state == S_STOPPING) {
@@ -173,9 +180,9 @@ void loop() {
       } else {
         Log.notice(F("PI has stopped"));
       }
-      state = S_STOPPED;
-      stateChange = currentMillis;
     }
+    state = S_STOPPED;
+    stateChange = currentMillis;
   }
   else if (state == S_STOPPED) {
     state = S_SLEEPING;
@@ -183,10 +190,9 @@ void loop() {
     Log.notice(F("cutting power"));
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
-
   }
   else if (state == S_SLEEPING){
-    uint8_t wakeMin = CalcNextWakeTime(sleepFor);
+    uint8_t wakeMin = CalcNextWakeTime(sleepFor/60);
     // use RTC to go to sleep
     attachInterrupt(0,alarm_isr,FALLING);
     SleepyPi.enableWakeupAlarm(true);
@@ -208,6 +214,10 @@ void loop() {
       state = S_STARTING;
       stateChange = currentMillis;
       Log.notice(F("PI recovered"));
-    }
+    } else {
+      // cut power and see what happens
+      state = S_STOPPING;
+      stateChange = currentMillis;
+    } 
   }
 }
