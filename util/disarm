@@ -1,0 +1,7 @@
+#!/bin/bash
+#
+
+i2cset -y 1 0x24 0xfd
+rm /boot/halt-after-picture
+rm /boot/stop-after-picture
+sync
