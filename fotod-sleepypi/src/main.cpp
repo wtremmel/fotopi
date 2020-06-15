@@ -25,7 +25,7 @@
 #include <Wire.h>
 #include <ArduinoLog.h>
 
-#define RUNNING_THRESHOLD 85
+#define RUNNING_THRESHOLD 200
 
 // Constants
 const int LED_PIN = 13;
@@ -60,11 +60,16 @@ void printNewline(Print* _logOutput) {
   _logOutput->print('\n');
 }
 
-void blink() {
+void blink(int howoften=1) {
+  int i;
   digitalWrite(LED_PIN,LOW);
-  digitalWrite(LED_PIN,HIGH);
-  delay(50);
-  digitalWrite(LED_PIN,LOW);
+  delay(100);
+  for (i=0; i < howoften; i++) {
+    delay(100);
+    digitalWrite(LED_PIN,HIGH);
+    delay(100);
+    digitalWrite(LED_PIN,LOW);
+  }
 }
 
 void alarm_isr() {
@@ -132,15 +137,26 @@ bool loop_reportVoltage() {
 void loop() {
   unsigned long currentMillis = millis();
 
-  if ((currentMillis % 1000) == 0) {
-    loop_reportVoltage();
-  }
-
   // check if we already have stopped, if yes, cut power
-  if ((millis() - stateChange) > (120l*1000l) && SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
+  if (state != S_STOPPED &&
+      (currentMillis - stateChange) > (120l*1000l) && 
+      !SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
     state = S_STOPPING;
     stateChange = currentMillis;
     Log.notice(F("PI seems no longer running"));
+  }
+
+  // check if we are more than 5 minutes in the same state -> ERROR
+  if ((currentMillis - stateChange) > 5l*60l*1000l) {
+    state = S_ERROR;
+    Log.notice(F("PI too long not state change"));
+    stateChange = currentMillis;
+  }
+
+  if ((currentMillis % 10000) == 0) {
+    loop_reportVoltage();
+    Log.verbose(F("state is %d"),state);
+    blink(state);
   }
 
   if (state == S_STARTING) {
@@ -199,9 +215,11 @@ void loop() {
     SleepyPi.setAlarm(wakeMin);
     Log.notice(F("stopping Controller until %d"),wakeMin);
     delay(500);
+    digitalWrite(LED_PIN,HIGH);
     SleepyPi.powerDown(SLEEP_FOREVER,ADC_OFF,BOD_OFF);
     detachInterrupt(0);
     SleepyPi.ackAlarm();
+    digitalWrite(LED_PIN,LOW);
     Log.notice(F("starting Controller"));
     state = S_STARTING;
     SleepyPi.enablePiPower(true);
@@ -211,13 +229,17 @@ void loop() {
   else if (state == S_ERROR) {
     // something is wrong
     if (SleepyPi.checkPiStatus(false)) {
-      state = S_STARTING;
-      stateChange = currentMillis;
       Log.notice(F("PI recovered"));
     } else {
       // cut power and see what happens
-      state = S_STOPPING;
-      stateChange = currentMillis;
+      Log.notice(F("PI power cycling"));
+      SleepyPi.enablePiPower(false);
+      SleepyPi.enableExtPower(false);
+      delay(1000);
+      SleepyPi.enablePiPower(true);
+      SleepyPi.enableExtPower(true);
     } 
+    stateChange = currentMillis;
+    state = S_STARTING;
   }
 }
