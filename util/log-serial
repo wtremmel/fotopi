@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+#
+
+use Device::SerialPort;
+
+$logfile = "/media/usb0/serial.log";
+$port = "/dev/ttyAMA0";
+
+
+
+$PortObj = new Device::SerialPort ($port);
+
+$PortObj->user_msg(ON);
+$PortObj->databits(8);
+$PortObj->baudrate(9600);
+$PortObj->stopbits(1);
+$PortObj->write_settings;
+
+open(OUT,">>$logfile");
+$| = 1;
+
+$PortObj->read_char_time(0);     # don't wait for each character
+$PortObj->read_const_time(1000); # 1 second per unfulfilled "read" call
+ 
+while (1) {
+  my ($count,$saw) = $PortObj->read(30);
+  if ($count > 0) {
+    print OUT $saw;
+  }
+}
+
