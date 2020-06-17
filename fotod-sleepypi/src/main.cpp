@@ -25,7 +25,8 @@
 #include <Wire.h>
 #include <ArduinoLog.h>
 
-#define RUNNING_THRESHOLD 200
+// using 100 for zero
+#define RUNNING_THRESHOLD 100
 
 // Constants
 const int LED_PIN = 13;
@@ -137,6 +138,12 @@ bool loop_reportVoltage() {
 void loop() {
   unsigned long currentMillis = millis();
 
+  if ((currentMillis % 2000) == 0) {
+    loop_reportVoltage();
+    Log.verbose(F("state is %d"),state);
+    blink(state);
+  }
+
   // check if we already have stopped, if yes, cut power
   if (state != S_STOPPED &&
       (currentMillis - stateChange) > (120l*1000l) && 
@@ -144,6 +151,7 @@ void loop() {
     state = S_STOPPING;
     stateChange = currentMillis;
     Log.notice(F("PI seems no longer running"));
+    blink(state);
   }
 
   // check if we are more than 5 minutes in the same state -> ERROR
@@ -151,11 +159,6 @@ void loop() {
     state = S_ERROR;
     Log.notice(F("PI too long not state change"));
     stateChange = currentMillis;
-  }
-
-  if ((currentMillis % 10000) == 0) {
-    loop_reportVoltage();
-    Log.verbose(F("state is %d"),state);
     blink(state);
   }
 
@@ -240,6 +243,16 @@ void loop() {
       SleepyPi.enableExtPower(true);
     } 
     stateChange = currentMillis;
+    state = S_STARTING;
+  } else {
+    // unknown state, should never happen
+    blink(state);
+    Log.notice(F("PI unknown state"));
+    SleepyPi.enablePiPower(false);
+    SleepyPi.enableExtPower(false);
+    delay(1000);
+    SleepyPi.enablePiPower(true);
+    SleepyPi.enableExtPower(true);
     state = S_STARTING;
   }
 }
