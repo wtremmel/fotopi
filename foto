@@ -45,7 +45,8 @@ mv $TMPDIR/$FILENAME $STORAGE
 
 if ping -c 1 $TARGETHOST &>/dev/null
 then
-  timeout 120s rsync -av --chmod=ugo=rwX --ignore-existing --remove-source-files -4 $STORAGE/ $TARGETREPO
+  # timeout 120s rsync -av --chmod=ugo=rwX --ignore-existing --remove-source-files -4 $STORAGE/ $TARGETREPO
+  timeout 120s rsync -av --chmod=ugo=rwX --ignore-existing -4 $STORAGE/ $TARGETREPO
 fi
 
 if [ -e /boot/stop-after-picture ]; then
