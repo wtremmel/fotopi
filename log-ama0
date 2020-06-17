@@ -1,0 +1,5 @@
+#!/bin/bash
+#
+
+ttylog -b 9600 -f -s -d /dev/ttyAMA0 >> /media/usb0/serial.log
+

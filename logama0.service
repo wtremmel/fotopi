@@ -1,0 +1,11 @@
+[Unit]
+Description=Serial Logger Service
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/log-ama0
+Restart=never
+
+[Install]
+WantedBy=multi-user.target
