@@ -1,0 +1,11 @@
+[Unit]
+Description=Serial Logger Service
+After=network.target
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/publish-power
+Restart=never
+
+[Install]
+WantedBy=multi-user.target
