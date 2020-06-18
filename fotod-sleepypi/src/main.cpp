@@ -86,7 +86,7 @@ void setup_serial() {
 
 void setup_logging() {
   Log.begin(LOG_LEVEL_VERBOSE, &Serial, true);
-  Log.setPrefix(printTimestamp);
+  // Log.setPrefix(printTimestamp);
   Log.setSuffix(printNewline);
   Log.verbose(F("Logging has started"));
 }
@@ -100,9 +100,9 @@ void setup_sleepy() {
 
 void setup() {
   state=S_SETUP;
-  setup_sleepy();
   setup_serial();
   setup_logging();
+  setup_sleepy();
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN,LOW);            // Switch off LED
   state=S_STARTING;
@@ -125,13 +125,15 @@ bool loop_reportVoltage() {
   return retval;
 }
 
+static unsigned long lastLog = 0l;
 void loop() {
   unsigned long currentMillis = millis();
 
-  if ((currentMillis % 2000) == 0) {
+  if (currentMillis - lastLog > 10000) {
     loop_reportVoltage();
     Log.verbose(F("state is %d"),state);
     blink(state);
+    lastLog = currentMillis;
   }
 
   // check if we already have stopped, if yes, cut power
