@@ -42,18 +42,7 @@ bool have_rtc = false;
 // Logging helper routines
 void printTimestamp(Print* _logOutput) {
   char c[40];
-  if (!have_rtc) {
-    sprintf(c, "%10lu ", millis());
-  } else {
-    DateTime now = SleepyPi.readTime();
-    sprintf(c,"%4d-%02d-%02d %02d:%02d:%02d ",
-      now.year(),
-      now.month(),
-      now.day(),
-      now.hour(),
-      now.minute(),
-      now.second());
-  }
+  sprintf(c, "%10lu ", millis());
   _logOutput->print(c);
 }
 
@@ -103,9 +92,10 @@ void setup_logging() {
 }
 
 void setup_sleepy() {
+  have_rtc = SleepyPi.rtcInit(false);
+  delay(10);
   SleepyPi.enablePiPower(true);
   SleepyPi.enableExtPower(true);
-  have_rtc = SleepyPi.rtcInit(false);
 }
 
 void setup() {
