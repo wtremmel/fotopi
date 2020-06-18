@@ -4,6 +4,11 @@ DOIT=/usr/local/bin/foto
 echo 25 > /sys/class/gpio/export
 echo out > /sys/class/gpio/gpio25/direction
 
+until hwclock -s
+do
+  echo waiting for clock sync
+done
+
 while true
 do
   START=`date +%s`

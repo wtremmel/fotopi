@@ -25,11 +25,12 @@
 #include <Wire.h>
 #include <ArduinoLog.h>
 
-#define RUNNING_THRESHOLD 85
+// using 100 for zero
+#define RUNNING_THRESHOLD 100
 
 // Constants
 const int LED_PIN = 13;
-const uint8_t sleepFor = 2; // in Minutes
+const uint8_t sleepFor = 120; // in seconds
 
 uint8_t state = S_SETUP;
 unsigned long stateChange;
@@ -41,18 +42,7 @@ bool have_rtc = false;
 // Logging helper routines
 void printTimestamp(Print* _logOutput) {
   char c[40];
-  if (!have_rtc) {
-    sprintf(c, "%10lu ", millis());
-  } else {
-    DateTime now = SleepyPi.readTime();
-    sprintf(c,"%4d-%02d-%02d %02d:%02d:%02d ",
-      now.year(),
-      now.month(),
-      now.day(),
-      now.hour(),
-      now.minute(),
-      now.second());
-  }
+  sprintf(c, "%10lu ", millis());
   _logOutput->print(c);
 }
 
@@ -60,11 +50,16 @@ void printNewline(Print* _logOutput) {
   _logOutput->print('\n');
 }
 
-void blink() {
+void blink(int howoften=1) {
+  int i;
   digitalWrite(LED_PIN,LOW);
-  digitalWrite(LED_PIN,HIGH);
-  delay(50);
-  digitalWrite(LED_PIN,LOW);
+  delay(100);
+  for (i=0; i < howoften; i++) {
+    delay(100);
+    digitalWrite(LED_PIN,HIGH);
+    delay(100);
+    digitalWrite(LED_PIN,LOW);
+  }
 }
 
 void alarm_isr() {
@@ -91,22 +86,23 @@ void setup_serial() {
 
 void setup_logging() {
   Log.begin(LOG_LEVEL_VERBOSE, &Serial, true);
-  Log.setPrefix(printTimestamp);
+  // Log.setPrefix(printTimestamp);
   Log.setSuffix(printNewline);
   Log.verbose(F("Logging has started"));
 }
 
 void setup_sleepy() {
+  have_rtc = SleepyPi.rtcInit(false);
+  delay(10);
   SleepyPi.enablePiPower(true);
   SleepyPi.enableExtPower(true);
-  have_rtc = SleepyPi.rtcInit(false);
 }
 
 void setup() {
   state=S_SETUP;
-  setup_sleepy();
   setup_serial();
   setup_logging();
+  setup_sleepy();
   pinMode(LED_PIN, OUTPUT);
   digitalWrite(LED_PIN,LOW);            // Switch off LED
   state=S_STARTING;
@@ -129,11 +125,33 @@ bool loop_reportVoltage() {
   return retval;
 }
 
+static unsigned long lastLog = 0l;
 void loop() {
   unsigned long currentMillis = millis();
 
-  if ((currentMillis % 1000) == 0) {
+  if (currentMillis - lastLog > 10000) {
     loop_reportVoltage();
+    Log.verbose(F("state is %d"),state);
+    blink(state);
+    lastLog = currentMillis;
+  }
+
+  // check if we already have stopped, if yes, cut power
+  if (state != S_STOPPED &&
+      (currentMillis - stateChange) > (120l*1000l) && 
+      !SleepyPi.checkPiStatus(RUNNING_THRESHOLD,false)) {
+    state = S_STOPPING;
+    stateChange = currentMillis;
+    Log.notice(F("PI seems no longer running"));
+    blink(state);
+  }
+
+  // check if we are more than 5 minutes in the same state -> ERROR
+  if ((currentMillis - stateChange) > 5l*60l*1000l) {
+    state = S_ERROR;
+    Log.notice(F("PI too long not state change"));
+    stateChange = currentMillis;
+    blink(state);
   }
 
   if (state == S_STARTING) {
@@ -159,7 +177,7 @@ void loop() {
       // shutting down
       state = S_STOPPING;
       stateChange = currentMillis;
-      Log.notice("PI is stopping");
+      Log.notice(F("PI is stopping"));
     }
   }
   else if (state == S_STOPPING) {
@@ -173,9 +191,9 @@ void loop() {
       } else {
         Log.notice(F("PI has stopped"));
       }
-      state = S_STOPPED;
-      stateChange = currentMillis;
     }
+    state = S_STOPPED;
+    stateChange = currentMillis;
   }
   else if (state == S_STOPPED) {
     state = S_SLEEPING;
@@ -183,19 +201,20 @@ void loop() {
     Log.notice(F("cutting power"));
     SleepyPi.enablePiPower(false);
     SleepyPi.enableExtPower(false);
-
   }
   else if (state == S_SLEEPING){
-    uint8_t wakeMin = CalcNextWakeTime(sleepFor);
+    uint8_t wakeMin = CalcNextWakeTime(sleepFor/60);
     // use RTC to go to sleep
     attachInterrupt(0,alarm_isr,FALLING);
     SleepyPi.enableWakeupAlarm(true);
     SleepyPi.setAlarm(wakeMin);
     Log.notice(F("stopping Controller until %d"),wakeMin);
     delay(500);
+    digitalWrite(LED_PIN,HIGH);
     SleepyPi.powerDown(SLEEP_FOREVER,ADC_OFF,BOD_OFF);
     detachInterrupt(0);
     SleepyPi.ackAlarm();
+    digitalWrite(LED_PIN,LOW);
     Log.notice(F("starting Controller"));
     state = S_STARTING;
     SleepyPi.enablePiPower(true);
@@ -205,9 +224,27 @@ void loop() {
   else if (state == S_ERROR) {
     // something is wrong
     if (SleepyPi.checkPiStatus(false)) {
-      state = S_STARTING;
-      stateChange = currentMillis;
       Log.notice(F("PI recovered"));
-    }
+    } else {
+      // cut power and see what happens
+      Log.notice(F("PI power cycling"));
+      SleepyPi.enablePiPower(false);
+      SleepyPi.enableExtPower(false);
+      delay(1000);
+      SleepyPi.enablePiPower(true);
+      SleepyPi.enableExtPower(true);
+    } 
+    stateChange = currentMillis;
+    state = S_STARTING;
+  } else {
+    // unknown state, should never happen
+    blink(state);
+    Log.notice(F("PI unknown state"));
+    SleepyPi.enablePiPower(false);
+    SleepyPi.enableExtPower(false);
+    delay(1000);
+    SleepyPi.enablePiPower(true);
+    SleepyPi.enableExtPower(true);
+    state = S_STARTING;
   }
 }

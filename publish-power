@@ -1,0 +1,35 @@
+#!/usr/bin/perl
+#
+#
+# read voltage and current and  publish via mosquitto
+#
+
+$debug = 0;
+
+$mqthost = "pi3.garf.de";
+$mqttopic= "/Chattenweg5/" . `hostname`;
+chomp $mqttopic;
+$input = "/dev/ttyS0";
+
+if (!$debug) {
+  use Proc::Daemon;
+  $pid = Proc::Daemon::Init;
+  exit if $pid;
+}
+
+while (1) {
+  open(F,$input);
+  while (<F>) {
+    # N: Current: 318.78
+    # N: Voltage: 12.1
+
+    if (/Current.*:\s+([0-9\.]+)\s/) {
+      system "mosquitto_pub -h $mqthost -t $mqttopic/current -m \"" . $1 . "\"\n";
+    }
+    if (/Voltage.*:\s+([0-9\.]+)\s/) {
+      system "mosquitto_pub -h $mqthost -t $mqttopic/voltage -m \"" . $1 . "\"\n";
+    }
+  }
+  close F;
+  sleep 180;
+}
