@@ -9,5 +9,5 @@ do
   echo .
 done
 
-ssh -l pi $PI sudo rm /boot/stop-after-picture /boot/halt-after-picture
+ssh -l pi $PI sudo rm /boot/halt-after-picture /boot/stop-after-picture
 
