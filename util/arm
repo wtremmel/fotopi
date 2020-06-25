@@ -1,7 +1,6 @@
 #!/bin/bash
 #
 
-touch /boot/halt-after-picture
 touch /boot/stop-after-picture
 sync
 sleep 1
