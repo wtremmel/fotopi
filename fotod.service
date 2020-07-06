@@ -1,6 +1,8 @@
 [Unit]
 Description=Fotod Service
-After=network.target
+Before=basic.target
+After=local-fs.target sysinit.target
+DefaultDependencies=no
 
 [Service]
 Type=simple
@@ -8,4 +10,4 @@ ExecStart=/usr/local/bin/fotod
 Restart=on-failure
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=basic.target
